@@ -605,6 +605,14 @@
   }
   .modal-action:hover { transform: translateY(-1px); background: var(--color-muted); }
   .pdf-modal__frame { width: 100%; flex: 1; min-height: 0; border: 0; background: #fff; }
+  .pdf-modal:fullscreen { padding: 0; place-items: stretch; }
+  .pdf-modal:fullscreen .pdf-modal__panel {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+  }
+  .pdf-modal:fullscreen .pdf-modal__title { font-size: 1.15rem; }
   body.modal-open { overflow: hidden; }
 
   /* ============================ GUIDE ============================ */
@@ -873,6 +881,11 @@
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>
           Unduh
         </a>
+        <button class="modal-action" id="pdf-fullscreen" type="button" aria-label="Perbesar pratinjau PDF ke layar penuh" aria-pressed="false">
+          <svg class="icon-expand" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>
+          <svg class="icon-collapse" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M8 3v3a2 2 0 0 1-2 2H3"></path><path d="M21 8h-3a2 2 0 0 1-2-2V3"></path><path d="M3 16h3a2 2 0 0 1 2 2v3"></path><path d="M16 21v-3a2 2 0 0 1 2-2h3"></path></svg>
+          <span class="close-label" id="pdf-fullscreen-label">Penuh</span>
+        </button>
         <button class="modal-action" id="pdf-close" type="button" aria-label="Tutup pratinjau PDF">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>
           <span class="close-label">Tutup</span>
@@ -992,6 +1005,14 @@
       tags: ["Subsektor", "IKT"],
       id: "1wdzFPk1OvMnKjg_Py04DOn24_oci9Rjv",
       colors: ["#0E7490", "#22D3EE"]
+    },
+    {
+      code: "Master Komoditas",
+      short: "Buku Master Komoditas SPDT NTP 2026",
+      desc: "Daftar kode komoditas (buku master) sebagai acuan pendataan SPDT NTP 2026.",
+      tags: ["Komoditas", "Kode"],
+      id: "1Jge1SmluotI2PNw4_XdcYRFcPpcaZDDY",
+      colors: ["#BE123C", "#FB7185"]
     }
   ];
 
@@ -1105,6 +1126,10 @@
   const modalTitleEl = document.getElementById("pdf-modal-title");
   const downloadEl = document.getElementById("pdf-download");
   const closeBtn = document.getElementById("pdf-close");
+  const fullscreenBtn = document.getElementById("pdf-fullscreen");
+  const fullscreenLabel = document.getElementById("pdf-fullscreen-label");
+  const iconExpand = fullscreenBtn.querySelector(".icon-expand");
+  const iconCollapse = fullscreenBtn.querySelector(".icon-collapse");
   let lastFocused = null;
 
   let activeFilter = "all";
@@ -1155,10 +1180,32 @@
   }
 
   function closeModal() {
+    if (document.fullscreenElement) document.exitFullscreen();
     modalEl.hidden = true;
     frameEl.src = "about:blank";
     document.body.classList.remove("modal-open");
     if (lastFocused && typeof lastFocused.focus === "function") lastFocused.focus();
+  }
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      const req = modalEl.requestFullscreen || modalEl.webkitRequestFullscreen;
+      if (req) req.call(modalEl);
+    }
+  }
+
+  function syncFullscreenBtn() {
+    const isFull = !!document.fullscreenElement;
+    iconExpand.hidden = isFull;
+    iconCollapse.hidden = !isFull;
+    fullscreenLabel.textContent = isFull ? "Keluar" : "Penuh";
+    fullscreenBtn.setAttribute("aria-pressed", String(isFull));
+    fullscreenBtn.setAttribute(
+      "aria-label",
+      isFull ? "Keluar dari layar penuh" : "Perbesar pratinjau PDF ke layar penuh"
+    );
   }
 
   cardsEl.addEventListener("click", (e) => {
@@ -1173,11 +1220,14 @@
   });
 
   closeBtn.addEventListener("click", closeModal);
+  fullscreenBtn.addEventListener("click", toggleFullscreen);
+  document.addEventListener("fullscreenchange", syncFullscreenBtn);
+  document.addEventListener("webkitfullscreenchange", syncFullscreenBtn);
   modalEl.addEventListener("click", (e) => {
     if (e.target === modalEl) closeModal();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !modalEl.hidden) closeModal();
+    if (e.key === "Escape" && !modalEl.hidden && !document.fullscreenElement) closeModal();
     if (e.key === "Tab" && !modalEl.hidden) {
       const focusables = modalEl.querySelectorAll("a[href], button:not([disabled])");
       if (!focusables.length) return;
